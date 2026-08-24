@@ -9,9 +9,9 @@ pip install robotiq2f
 ```
 
 ```python
-from robotiq2f import Robotiq2F
+from robotiq2f import Robotiq2F85
 
-gripper = Robotiq2F(serial_number="DAK1RLYZ")   # Robotiq 2F-85 over USB/RS-485
+gripper = Robotiq2F85(serial_number="DAK1RLYZ")  # Robotiq 2F-85 over USB/RS-485
 gripper.go_to(opening=85, speed=150, force=235)  # fully open the 2F-85
 ```
 
@@ -51,10 +51,10 @@ and logout/login to refresh the membership.
 ## Usage — Controlling a Robotiq 2F-85 from Python
 
 ```python
-from robotiq2f import Robotiq2F
+from robotiq2f import Robotiq2F85
 
 # Initialize the driver with the gripper's serial number
-gripper = Robotiq2F(serial_number="DAK1RLYZ")
+gripper = Robotiq2F85(serial_number="DAK1RLYZ")
 
 # Reset the gripper
 gripper.reset()
@@ -148,7 +148,7 @@ make test         # pytest
 ## Limitations
 Currently assumes that Linux is used as the operating system, which could be easily extended to support other operating systems.
 
-Currently only the **Robotiq 2F-85** is supported; the calibration constants for other members of the Robotiq 2F family (e.g. the 2F-140) are not yet parameterized.
+Currently only the **Robotiq 2F-85** is supported, via the `Robotiq2F85` class. It inherits from an (for now empty) `Robotiq2F` base class that is intended to hold the behaviour shared across the Robotiq 2F family, once the model-specific calibration constants for other members (e.g. the 2F-140) are parameterized.
 
 ## License
 

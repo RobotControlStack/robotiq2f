@@ -127,6 +127,10 @@ class GripperNotFoundError(RuntimeError):
 
 
 class Robotiq2F:
+    """Common base class for the Robotiq 2F gripper family."""
+
+
+class Robotiq2F85(Robotiq2F):
     def __init__(self, serial_number: str, debug=False):
         self.debug = debug
         self.device_serial_number = serial_number
@@ -428,7 +432,7 @@ class Robotiq2F:
 
 
 if __name__ == "__main__":
-    gripper = Robotiq2F(serial_number="DAK1RLYZ")
+    gripper = Robotiq2F85(serial_number="DAK1RLYZ")
     gripper.reset()
     gripper.go_to(opening=85, speed=150, force=235)
     print(gripper.opening)
