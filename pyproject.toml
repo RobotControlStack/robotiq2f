@@ -1,0 +1,143 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "robotiq2f"
+version = "0.1.0"
+description = "Robotiq 2F-85 gripper driver for Python: a simple, ROS-free, pure-Python driver for the Robotiq 2F-85 (2F85) two-finger adaptive gripper."
+dependencies = [
+  "minimalmodbus>=2.1",
+]
+readme = "README.md"
+maintainers = [{ name = "Tobias Juelg", email = "tobiasj@allenai.org" }]
+authors = [
+  { name = "Philippe Nadeau", email = "philippe.nadeau@robotics.utias.utoronto.ca" },
+  { name = "Tobias Juelg", email = "tobiasj@allenai.org" },
+]
+requires-python = ">=3.10"
+license = "MIT"
+
+keywords = [
+    "robotiq",
+    "robotiq-2f-85",
+    "2f-85",
+    "2f85",
+    "robotiq-2f",
+    "gripper",
+    "robot-gripper",
+    "two-finger-gripper",
+    "adaptive-gripper",
+    "modbus",
+    "modbus-rtu",
+    "robotics",
+    "driver",
+]
+
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "Operating System :: POSIX :: Linux",
+    "Topic :: Scientific/Engineering",
+    "Topic :: System :: Hardware :: Hardware Drivers",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["robotiq2f*"]
+
+[project.urls]
+Homepage = "https://github.com/RobotControlStack/robotiq2f"
+Issues = "https://github.com/RobotControlStack/robotiq2f/issues"
+
+
+[dependency-groups]
+dev = [
+  "ruff",
+  "black",
+  "isort",
+  "mypy",
+  "build",
+  "pytest",
+  "commitizen",
+]
+
+
+[tool.ruff]
+line-length = 120
+
+[tool.ruff.lint]
+fixable = ["ALL"]
+extend-select = [
+  "B", # flake8-bugbear
+  # "I",           # isort
+  "ARG", # flake8-unused-arguments
+  "C4",  # flake8-comprehensions
+  "EM",  # flake8-errmsg
+  "ICN", # flake8-import-conventions
+  "G",   # flake8-logging-format
+  "PGH", # pygrep-hooks
+  "PIE", # flake8-pie
+  "PL",  # pylint
+  "PT",  # flake8-pytest-style
+  #   "PTH",         # flake8-use-pathlib
+  "RET", # flake8-return
+  "RUF", # Ruff-specific
+  "SIM", # flake8-simplify
+  "T20", # flake8-print
+  #   "UP",          # pyupgrade
+  "YTT", # flake8-2020
+  "EXE", # flake8-executable
+]
+ignore = [
+  "PLR09",   # Too many X
+  "PLR2004", # Magic comparison
+  "E741",    # ambiguous variable name
+  "PGH003",  # Use specfic rule code when ignoring types issues
+  "T201",    # print() used
+]
+
+[tool.pylint.format]
+max-line-length = 120
+
+[tool.pylint.messages_control]
+disable = [
+  "C",
+  "R",
+  "fixme",
+  "logging-fstring-interpolation",
+  "unspecified-encoding",
+  "broad-exception-raised",
+  "broad-exception-caught",
+]
+
+[tool.black]
+line-length = 120
+target-version = ["py310"]
+
+[tool.isort]
+profile = "black"
+known_first_party = ["robotiq2f"]
+
+[tool.mypy]
+ignore_missing_imports = true
+check_untyped_defs = true
+pretty = true
+
+[tool.pytest.ini_options]
+minversion = "6.0"
+addopts = "-vv"
+testpaths = ["src/tests"]
+
+
+[tool.commitizen]
+name = "cz_conventional_commits"
+tag_format = "v$version"
+version_scheme = "pep440"
+version_provider = "pep621"
+update_changelog_on_bump = true
+major_version_zero = true
+version_files = [
+  "src/robotiq2f/__init__.py:__version__",
+]

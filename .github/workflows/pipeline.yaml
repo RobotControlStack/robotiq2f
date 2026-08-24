@@ -1,0 +1,42 @@
+name: Python
+on:
+  workflow_call:
+  pull_request:
+    paths:
+      - "src/**"
+      - "pyproject.toml"
+      - ".github/workflows/**"
+  push:
+    branches:
+      - main
+  release:
+    types: [ published ]
+
+jobs:
+  pipeline:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+          cache: "pip"
+      - name: Install library
+        run: python -m pip install -e .
+      - name: Install linting and formatting dependencies
+        run: python -m pip install 'pip>=25.1' && python -m pip install --group dev
+      - name: Check formatting
+        run: make checkformat
+      - name: Check linting
+        run: make lint
+      - name: Tests
+        run: make test
+
+      - name: Build sdist and wheel
+        run: python -m build
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: python-package-distributions
+          path: dist/

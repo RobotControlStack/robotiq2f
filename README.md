@@ -1,6 +1,23 @@
-# Robotiq 2F-85 Driver
+# robotiq2f — Robotiq 2F-85 Gripper Driver for Python
 
-The `Robotiq2F85Driver` is a Python module that provides a driver for interacting with the Robotiq 2F-85 gripper. It includes functionalities for finding the gripper's serial port, activating/deactivating the gripper, reading its status, and controlling its movements.
+**A pure-Python, ROS-free driver for the Robotiq 2F-85 (2F85) two-finger adaptive gripper.**
+
+`robotiq2f` is a Python package that provides a driver for interacting with the **Robotiq 2F-85** gripper over Modbus RTU. It includes functionalities for finding the gripper's serial port, activating/deactivating the gripper, reading its status, and controlling its movements.
+
+```shell
+pip install robotiq2f
+```
+
+```python
+from robotiq2f import Robotiq2F
+
+gripper = Robotiq2F(serial_number="DAK1RLYZ")   # Robotiq 2F-85 over USB/RS-485
+gripper.go_to(opening=85, speed=150, force=235)  # fully open the 2F-85
+```
+
+This is a fork of [PhilNad/2f85-python-driver](https://github.com/PhilNad/2f85-python-driver).
+
+*Keywords: Robotiq 2F-85, Robotiq 2F85, 2F-85 gripper, Robotiq gripper Python driver, Robotiq 2F, two-finger adaptive gripper, Modbus RTU, robotics.*
 
 ## Features
 Compared to existing packages, this one is different in the following ways:
@@ -11,13 +28,19 @@ Compared to existing packages, this one is different in the following ways:
 
 ## Installation
 
-Make sure you have Python 3.x installed. After cloning the repository, you can install the package using the following command:
+Requires Python 3.10 or newer.
 
-```bash
-pip install .
+### Pip Installation (Recommended)
+```shell
+pip install robotiq2f
 ```
 
-executed from the root directory of the repository.
+### Local Installation
+```shell
+git clone https://github.com/RobotControlStack/robotiq2f.git
+cd robotiq2f
+pip install -ve .
+```
 
 To allow access to the serial connection, you will also need to add make your user a member of the `dialout` group with
 ```bash
@@ -25,13 +48,13 @@ sudo adduser $USER dialout
 ```
 and logout/login to refresh the membership.
 
-## Usage
+## Usage — Controlling a Robotiq 2F-85 from Python
 
 ```python
-from Robotiq2F85Driver import Robotiq2F85Driver
+from robotiq2f import Robotiq2F
 
 # Initialize the driver with the gripper's serial number
-gripper = Robotiq2F85Driver(serial_number='DAK1RLYZ')
+gripper = Robotiq2F(serial_number="DAK1RLYZ")
 
 # Reset the gripper
 gripper.reset()
@@ -110,9 +133,29 @@ that provides an expression for the position of the TCP frame as a function of t
 
 - `in_fault: bool`: Check if the gripper is in a fault state.
 
+## Development
+
+Install the development dependencies and use the `Makefile` targets:
+
+```shell
+pip install -ve . && pip install --group dev
+make format       # isort + black
+make checkformat  # verify formatting without changing files
+make lint         # ruff + mypy
+make test         # pytest
+```
+
 ## Limitations
 Currently assumes that Linux is used as the operating system, which could be easily extended to support other operating systems.
+
+Currently only the **Robotiq 2F-85** is supported; the calibration constants for other members of the Robotiq 2F family (e.g. the 2F-140) are not yet parameterized.
 
 ## License
 
 This project is licensed under the [MIT License](LICENSE).
+
+
+# TODO
+- remove the sleep
+- add async thread that constantly polls
+- support the 2F-140 by parameterizing the model-specific constants
