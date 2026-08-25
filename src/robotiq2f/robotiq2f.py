@@ -1,12 +1,31 @@
 import math
 import struct
 import subprocess
-import time
+import threading
 from dataclasses import dataclass, field
 from pathlib import Path
+from time import perf_counter, sleep
 
 import minimalmodbus as mm
 
+class SimpleFrameRate:
+    def __init__(self, frame_rate: float | None):
+        self.t: float | None = None
+        self.frame_rate = frame_rate
+
+    def reset(self):
+        self.t = None
+
+    def limit(self):
+        if self.frame_rate is None:
+            return
+        if self.t is None:
+            self.t = perf_counter()
+            return
+        sleep_time = 1 / self.frame_rate - (perf_counter() - self.t)
+        if sleep_time > 0:
+            sleep(sleep_time)
+        self.t = perf_counter()
 
 class LinuxFindTTYWithSerialNumber:
     def __init__(self):
@@ -131,15 +150,24 @@ class Robotiq2F:
 
 
 class Robotiq2F85(Robotiq2F):
-    def __init__(self, serial_number: str, debug=False):
+    # in hz
+    MAX_FREQUENCY = 200
+    def __init__(self, serial_number: str, debug: bool = False, async_control: bool = True, read_frequency: float = 200):
         self.debug = debug
         self.device_serial_number = serial_number
         self.tty_device = LinuxFindTTYWithSerialNumber().find(serial_number)
+        self.async_control = async_control
+        self._last_status_mutex = threading.Lock()
+        self._last_status: GripperStatus | None = None
+        self._last_status_time: float | None = None
+        self._async_thread: threading.Thread | None = None
+        self.read_frequency = read_frequency
 
         if self.tty_device is None:
             msg = f"No device with serial number {serial_number} found."
             raise GripperNotFoundError(msg)
 
+        self._client_mutex = threading.Lock()
         self.client = mm.Instrument(port=self.tty_device, slaveaddress=9, mode=mm.MODE_RTU, debug=self.debug)
         self.client.serial.baudrate = 115200
         self.client.serial.parity = mm.serial.PARITY_NONE
@@ -246,15 +274,17 @@ class Robotiq2F85(Robotiq2F):
         """
         action_request_register = 1 << 8
         gripper_options1_register = 0
-        self.client.write_registers(registeraddress=1000, values=[action_request_register + gripper_options1_register])
+        with self._client_mutex:
+            self.client.write_registers(registeraddress=1000, values=[action_request_register + gripper_options1_register])
 
         if blocking_call:
             # Read the status while the gripper is activating
-            while self.is_activating:
-                pass
+            fps = SimpleFrameRate(self.MAX_FREQUENCY)
+            while self.read_status_sync().is_activating:
+                fps.limit()
             # Read the status until the gripper is activated
-            while not self.is_activated:
-                pass
+            while not self.read_status_sync().is_activated:
+                fps.limit()
 
     def deactivate(self, blocking_call: bool = True):
         """
@@ -262,12 +292,14 @@ class Robotiq2F85(Robotiq2F):
         """
         action_request_register = 0 << 8
         gripper_options1_register = 0
-        self.client.write_registers(registeraddress=1000, values=[action_request_register + gripper_options1_register])
+        with self._client_mutex:
+            self.client.write_registers(registeraddress=1000, values=[action_request_register + gripper_options1_register])
 
         if blocking_call:
             # Read the status until the gripper is deactivated
-            while self.is_activated:
-                pass
+            fps = SimpleFrameRate(self.MAX_FREQUENCY)
+            while self.read_status_sync().is_activated:
+                fps.limit()
 
     def reset(self, blocking_call: bool = True):
         """
@@ -317,7 +349,7 @@ class Robotiq2F85(Robotiq2F):
         desired_tcp_z = self.tcp_Z_from_opening(desired_opening, pad_thickness)
         return desired_tcp_z - current_tcp_z
 
-    def go_to(self, opening: float, speed: float, force: float, blocking_call: bool = True):
+    def go_to(self, opening: float, speed: float, force: float):
         """
         Move the gripper to the specified opening, speed and force.
 
@@ -347,22 +379,52 @@ class Robotiq2F85(Robotiq2F):
         # Byte 5
         force_register = force_count
 
-        self.client.write_registers(
-            registeraddress=1000,
-            values=[
-                action_request_register + gripper_options1_register,
-                gripper_options2_register + position_request_register,
-                speed_register + force_register,
-            ],
-        )
+        with self._client_mutex:
+            self.client.write_registers(
+                registeraddress=1000,
+                values=[
+                    action_request_register + gripper_options1_register,
+                    gripper_options2_register + position_request_register,
+                    speed_register + force_register,
+                ],
+            )
 
-        if blocking_call:
+        if not self.async_control:
             # Read the status until the gripper is stopped
-            while self.is_moving:
-                pass
+            fps = SimpleFrameRate(self.MAX_FREQUENCY)
+            while self.read_status_sync().moving:
+                fps.limit()
 
     def read_status(self) -> GripperStatus:
-        values = self.client.read_registers(registeraddress=2000, number_of_registers=3, functioncode=4)
+        if not self.async_control:
+            return self.read_status_sync()
+        if self._async_thread is None:
+            self.read_status_sync()
+            self._async_thread = threading.Thread(target=self.read_status_thread, daemon=True)
+            self._async_thread.start()
+
+        with self._last_status_mutex:
+            assert self._last_status is not None
+            return self._last_status
+        
+
+    def read_status_thread(self):
+        fps = SimpleFrameRate(self.read_frequency)
+        while True:
+            self.read_status_sync()
+            fps.limit()
+
+
+
+    def read_status_sync(self) -> GripperStatus:
+        with self._last_status_mutex:
+            if self._last_status is not None and self._last_status_time is not None and self._last_status_time + 1/self.MAX_FREQUENCY > perf_counter():
+                return self._last_status
+            self._last_status_time = perf_counter()
+
+        with self._client_mutex:
+            values = self.client.read_registers(registeraddress=2000, number_of_registers=3, functioncode=4)
+
         # Each register is 16 bits and therefore contains two unsigned char each
         gripper_status_register, _reserved_register = struct.unpack("BB", values[0].to_bytes(2, "big"))
         fault_status_register, position_request_echo_register = struct.unpack("BB", values[1].to_bytes(2, "big"))
@@ -425,9 +487,8 @@ class Robotiq2F85(Robotiq2F):
                 print("Auto-release completed", end="")
             print()
 
-        # The maximum rate at which readings/commands can be sent is 200Hz
-        time.sleep(5 / 1000)
-
+        with self._last_status_mutex:
+            self._last_status = status
         return status
 
 
