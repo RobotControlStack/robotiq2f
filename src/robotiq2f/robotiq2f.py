@@ -68,6 +68,18 @@ class LinuxFindTTYWithSerialNumber:
         # Return None if no device matching the specified serial number was found.
         return None
 
+    def list_devices(self) -> list[tuple[str, str | None]]:
+        """
+        List every /dev/ttyUSB* device together with its serial number.
+
+        Returns:
+        --------
+        list[tuple[str, str | None]]
+            (device path, serial number) pairs, sorted by device path. The serial number is
+            None for devices that do not expose an ATTRS{serial} attribute.
+        """
+        return [(str(tty), self.get_serial_number(tty)) for tty in sorted(Path("/dev").glob("ttyUSB*"))]
+
     def get_serial_number(self, tty_device: Path):
         """
         Get the serial number of a given device.

@@ -1,10 +1,12 @@
 """Unit tests for the hardware-independent unit conversions and the TCP geometry model."""
 
 import math
+from pathlib import Path
 
 import pytest
 
-from robotiq2f import Robotiq2F85
+from robotiq2f import LinuxFindTTYWithSerialNumber, Robotiq2F85
+from robotiq2f import robotiq2f as module
 
 
 @pytest.fixture
@@ -65,3 +67,23 @@ def test_tcp_z_is_maximal_where_the_fingers_are_vertical(gripper: Robotiq2F85) -
     assert peak == pytest.approx(87.308 + 57.15)
     assert gripper.tcp_Z_from_opening(0.0) < peak
     assert gripper.tcp_Z_from_opening(85.0) < peak
+
+
+SERIALS = {"/dev/ttyUSB1": "DAK1RLYZ", "/dev/ttyUSB0": None}
+
+
+def test_list_devices_pairs_ports_with_serial_numbers(monkeypatch: pytest.MonkeyPatch) -> None:
+    def fake_glob(_self: Path, _pattern: str) -> list[Path]:
+        return [Path(port) for port in SERIALS]
+
+    def fake_serial(_self: LinuxFindTTYWithSerialNumber, tty: Path) -> str | None:
+        return SERIALS[str(tty)]
+
+    monkeypatch.setattr(module.Path, "glob", fake_glob)
+    monkeypatch.setattr(LinuxFindTTYWithSerialNumber, "get_serial_number", fake_serial)
+
+    # Sorted by device path, and a missing serial number becomes None rather than an error.
+    assert LinuxFindTTYWithSerialNumber().list_devices() == [
+        ("/dev/ttyUSB0", None),
+        ("/dev/ttyUSB1", "DAK1RLYZ"),
+    ]
