@@ -193,6 +193,16 @@ class Robotiq2F85(Robotiq2F):
         self.client.serial.bytesize = 8
         self.client.serial.stopbits = mm.serial.STOPBITS_ONE
 
+    def close(self):
+        """Close the serial connection to the gripper."""
+        self.client.serial.close()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *_exc):
+        self.close()
+
     @property
     def opening(self):
         """Current opening in millimeters"""
