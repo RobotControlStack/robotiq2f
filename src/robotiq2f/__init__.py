@@ -8,7 +8,7 @@ from robotiq2f.robotiq2f import (
     SimpleFrameRate,
 )
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 __all__ = [
     "GripperFault",
     "GripperNotFoundError",
