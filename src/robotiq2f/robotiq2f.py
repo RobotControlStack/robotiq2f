@@ -8,6 +8,7 @@ from time import perf_counter, sleep
 
 import minimalmodbus as mm
 
+
 class SimpleFrameRate:
     def __init__(self, frame_rate: float | None):
         self.t: float | None = None
@@ -26,6 +27,7 @@ class SimpleFrameRate:
         if sleep_time > 0:
             sleep(sleep_time)
         self.t = perf_counter()
+
 
 class LinuxFindTTYWithSerialNumber:
     def __init__(self):
@@ -152,7 +154,10 @@ class Robotiq2F:
 class Robotiq2F85(Robotiq2F):
     # in hz
     MAX_FREQUENCY = 200
-    def __init__(self, serial_number: str, debug: bool = False, async_control: bool = True, read_frequency: float = 200):
+
+    def __init__(
+        self, serial_number: str, debug: bool = False, async_control: bool = True, read_frequency: float = 200
+    ):
         self.debug = debug
         self.device_serial_number = serial_number
         self.tty_device = LinuxFindTTYWithSerialNumber().find(serial_number)
@@ -275,7 +280,9 @@ class Robotiq2F85(Robotiq2F):
         action_request_register = 1 << 8
         gripper_options1_register = 0
         with self._client_mutex:
-            self.client.write_registers(registeraddress=1000, values=[action_request_register + gripper_options1_register])
+            self.client.write_registers(
+                registeraddress=1000, values=[action_request_register + gripper_options1_register]
+            )
 
         if blocking_call:
             # Read the status while the gripper is activating
@@ -293,7 +300,9 @@ class Robotiq2F85(Robotiq2F):
         action_request_register = 0 << 8
         gripper_options1_register = 0
         with self._client_mutex:
-            self.client.write_registers(registeraddress=1000, values=[action_request_register + gripper_options1_register])
+            self.client.write_registers(
+                registeraddress=1000, values=[action_request_register + gripper_options1_register]
+            )
 
         if blocking_call:
             # Read the status until the gripper is deactivated
@@ -406,7 +415,6 @@ class Robotiq2F85(Robotiq2F):
         with self._last_status_mutex:
             assert self._last_status is not None
             return self._last_status
-        
 
     def read_status_thread(self):
         fps = SimpleFrameRate(self.read_frequency)
@@ -414,11 +422,13 @@ class Robotiq2F85(Robotiq2F):
             self.read_status_sync()
             fps.limit()
 
-
-
     def read_status_sync(self) -> GripperStatus:
         with self._last_status_mutex:
-            if self._last_status is not None and self._last_status_time is not None and self._last_status_time + 1/self.MAX_FREQUENCY > perf_counter():
+            if (
+                self._last_status is not None
+                and self._last_status_time is not None
+                and self._last_status_time + 1 / self.MAX_FREQUENCY > perf_counter()
+            ):
                 return self._last_status
             self._last_status_time = perf_counter()
 
