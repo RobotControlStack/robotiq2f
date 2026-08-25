@@ -127,7 +127,7 @@ class GripperFault:
 
 
 @dataclass
-class GripperStatus:
+class Robotiq2FStatus:
     activated: bool
     moving: bool
     # In milliamps
@@ -154,6 +154,8 @@ class Robotiq2F:
 class Robotiq2F85(Robotiq2F):
     # in hz
     MAX_FREQUENCY = 200
+    # in mm, fully open
+    MAX_OPENING = 85.0
 
     def __init__(
         self, serial_number: str, debug: bool = False, async_control: bool = True, read_frequency: float = 200
@@ -163,7 +165,7 @@ class Robotiq2F85(Robotiq2F):
         self.tty_device = LinuxFindTTYWithSerialNumber().find(serial_number)
         self.async_control = async_control
         self._last_status_mutex = threading.Lock()
-        self._last_status: GripperStatus | None = None
+        self._last_status: Robotiq2FStatus | None = None
         self._last_status_time: float | None = None
         self._async_thread: threading.Thread | None = None
         self.read_frequency = read_frequency
@@ -231,11 +233,11 @@ class Robotiq2F85(Robotiq2F):
         """Converts a count to an opening in millimeters"""
         count = min(max(count, 0), 255)
         opening = (230 - count) * 0.39
-        return min(max(opening, 0), 85)
+        return min(max(opening, 0), self.MAX_OPENING)
 
     def opening_to_count(self, opening: float):
         """Converts an opening in millimeters to a count"""
-        opening = min(max(opening, 0), 85)
+        opening = min(max(opening, 0), self.MAX_OPENING)
         count = 230 - (opening / 0.39)
         return int(count)
 
@@ -325,7 +327,7 @@ class Robotiq2F85(Robotiq2F):
         Parameters
         ----------
         opening : float
-            Distance between the fingertips. Fully open is 85mm, and fully closed is 0mm.
+            Distance between the fingertips. Fully open is `MAX_OPENING` mm, and fully closed is 0mm.
         pad_thickness : float
             Thickness of the pads. Default is 7.8mm (silicone pads).
         """
@@ -365,7 +367,7 @@ class Robotiq2F85(Robotiq2F):
         Parameters:
         -----------
         opening : float
-            Opening in millimeters. Must be between 0 and 85 mm.
+            Opening in millimeters. Must be between 0 and `MAX_OPENING` mm.
         speed : float
             Speed in mm/s. Must be between 20 and 150 mm/s.
         force : float
@@ -404,7 +406,7 @@ class Robotiq2F85(Robotiq2F):
             while self.read_status_sync().moving:
                 fps.limit()
 
-    def read_status(self) -> GripperStatus:
+    def read_status(self) -> Robotiq2FStatus:
         if not self.async_control:
             return self.read_status_sync()
         if self._async_thread is None:
@@ -422,7 +424,7 @@ class Robotiq2F85(Robotiq2F):
             self.read_status_sync()
             fps.limit()
 
-    def read_status_sync(self) -> GripperStatus:
+    def read_status_sync(self) -> Robotiq2FStatus:
         with self._last_status_mutex:
             if (
                 self._last_status is not None
@@ -452,7 +454,7 @@ class Robotiq2F85(Robotiq2F):
             auto_release_completed=bool(fault_status_register == 0x0F),
         )
 
-        status = GripperStatus(
+        status = Robotiq2FStatus(
             activated=bool(gripper_status_register & 2**0),
             moving=bool(gripper_status_register & 2**3)
             and (not bool(gripper_status_register & 2**6) and not bool(gripper_status_register & 2**7)),
@@ -505,5 +507,5 @@ class Robotiq2F85(Robotiq2F):
 if __name__ == "__main__":
     gripper = Robotiq2F85(serial_number="DAK1RLYZ")
     gripper.reset()
-    gripper.go_to(opening=85, speed=150, force=235)
+    gripper.go_to(opening=Robotiq2F85.MAX_OPENING, speed=150, force=235)
     print(gripper.opening)
